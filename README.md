@@ -11,7 +11,12 @@ SPDK features an iSCSI client virtual block device that integrates [libiscsi](ht
 
 In order to offer client side encryption, SPDK's implementation was extended to provide transparent data encryption with the AES-XTS block cipher mode. 
 
-After the installation ([SPDK-Getting_Started](https://spdk.io/doc/getting_started.html)), at [init_iscsi_initiator.sh](init_iscsi_initiator.sh)  we have an example on how the S2Dedup's client can be initiated:
+After the installation ([SPDK-Getting_Started](https://spdk.io/doc/getting_started.html)), we can start the SPDK:
+~~~{.sh}
+sudo app/iscsi_tgt/iscsi_tgt 
+~~~
+
+At [init_iscsi_initiator.sh](init_iscsi_initiator.sh)  we have an example on how the S2Dedup's client can be initiated:
 ~~~{.sh}
 sudo ./scripts/rpc.py bdev_iscsi_create -b iSCSI0 -i iqn.2016-06.io.spdk:Target --url iscsi://192.168.112.129:3260/iqn.2016-06.io.spdk:Target/0
 

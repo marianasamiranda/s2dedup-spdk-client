@@ -1,6 +1,9 @@
 # S2Dedup's Client
 
-This repository is part of the S2Dedup project. Please refer to [S2Dedup repository](https://github.com/mmm97/S2Dedup) for further information. 
+
+This repository is part of the S2Dedup project. Please refer to [S2Dedup repository](https://github.com/mmm97/S2Dedup) for further information or you may read the paper published in SYSTOR'21:
+
+- "S2Dedup: SGX-enabled Secure Deduplication"
 
 S2Dedup's client implementation is based on the Storage Performance Development Kit ([SPDK](http://www.spdk.io)), which provides a set of tools and libraries for writing high performance, scalable, user-mode storage applications. Please refer to ([SPDK-Getting_Started](https://spdk.io/doc/getting_started.html)) for installation instructions.
 
@@ -8,10 +11,18 @@ SPDK features an iSCSI client virtual block device that integrates [libiscsi](ht
 
 In order to offer client side encryption, SPDK's implementation was extended to provide transparent data encryption with the AES-XTS block cipher mode. 
 
-After the installation, at [init_iscsi_initiator.sh](init_iscsi_initiator.sh)  we have an example on how the S2Dedup's client can be initiated:
+After the installation ([SPDK-Getting_Started](https://spdk.io/doc/getting_started.html)), at [init_iscsi_initiator.sh](init_iscsi_initiator.sh)  we have an example on how the S2Dedup's client can be initiated:
 ~~~{.sh}
 sudo ./scripts/rpc.py bdev_iscsi_create -b iSCSI0 -i iqn.2016-06.io.spdk:Target --url iscsi://192.168.112.129:3260/iqn.2016-06.io.spdk:Target/0
 
 #do not forget to do sudo modprobe nbd
 sudo ./scripts/rpc.py nbd_start_disk iSCSI0 /dev/nbd0
 ~~~
+
+## Contacts
+For more information please contact: 
+
+- Mariana Miranda - mariana.m.miranda at inesctec.pt
+- João Paulo - joao.t.paulo at inesctec.pt
+- Tânia Esteves - tania.c.araujo at inestec.pt
+- Bernardo Portela - b.portela at fct.unl.pt

@@ -132,7 +132,7 @@ CONFIG_VPP=n
 CONFIG_VPP_DIR=
 
 # Requires libiscsi development libraries.
-CONFIG_ISCSI_INITIATOR=n
+CONFIG_ISCSI_INITIATOR=y
 
 # Enable the dependencies for building the crypto vbdev
 CONFIG_CRYPTO=n

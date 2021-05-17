@@ -438,6 +438,92 @@ write_to_socket(int fd, void *buf, size_t length)
 	}
 }
 
+/*******************ENCRYPTION AUXILIARY FUNCTIONS*********************/
+#include <openssl/conf.h>
+#include <openssl/evp.h>
+#include <openssl/err.h>
+
+#define KEY_SIZE 64
+
+unsigned char CLIENT_KEY[KEY_SIZE]  = "C53C0E2F1B0B19AC53C0E2F1B0B19AAC53C0E2F1B0B19AC53C0E2F1B0B19AAA";
+
+void auth_handleErrors(void) {
+    // ERR_print_errors_fp(stderr);
+    // abort();
+}
+
+
+int encrypt_xts(unsigned char* key, unsigned char* tweak, unsigned char* dest, const unsigned char* src, int size) {
+    EVP_CIPHER_CTX *ctx;
+    int len;
+    int ciphertext_len;
+
+    /* Create and initialise the context */
+    if(!(ctx = EVP_CIPHER_CTX_new())) auth_handleErrors();
+
+    /* Initialise the encryption operation. */
+    if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_256_xts(), NULL, key, tweak)) auth_handleErrors();
+
+    /* Provide the message to be encrypted, and obtain the encrypted output.
+     * EVP_EncryptUpdate can be called multiple times if necessary
+     */
+    if(1 != EVP_EncryptUpdate(ctx, dest, &len, src, size)) auth_handleErrors();
+    ciphertext_len = len;
+
+    /* Finalise the encryption. Normally ciphertext bytes may be written at
+     * this stage, but this does not occur in GCM mode
+     */
+    if(1 != EVP_EncryptFinal_ex(ctx, dest + len, &len)) auth_handleErrors();
+    ciphertext_len += len;
+
+
+    /* Clean up */
+    EVP_CIPHER_CTX_free(ctx);
+
+    return ciphertext_len;
+}
+
+int decrypt_xts(unsigned char* key, unsigned char* tweak, unsigned char* dest, const unsigned char* src, int size) {
+    EVP_CIPHER_CTX *ctx;
+    int len;
+    int plaintext_len;
+    int ret;
+
+    /* Create and initialise the context */
+    if(!(ctx = EVP_CIPHER_CTX_new())) auth_handleErrors();
+
+    /* Initialise the decryption operation. */
+    if(!EVP_DecryptInit_ex(ctx, EVP_aes_256_xts(), NULL, key, tweak)) auth_handleErrors();
+
+   /* Provide the message to be decrypted, and obtain the plaintext output.
+    * EVP_DecryptUpdate can be called multiple times if necessary
+    */
+    if(!EVP_DecryptUpdate(ctx, dest, &len, src, size)) auth_handleErrors();
+    plaintext_len = len;
+
+   /* Finalise the decryption. A positive return value indicates success,
+    * anything else is a failure - the plaintext is not trustworthy.
+    */
+    ret = EVP_DecryptFinal_ex(ctx, dest + len, &len);
+
+    /* Clean up */
+    EVP_CIPHER_CTX_free(ctx);
+
+    if(ret > 0) {
+        /* Success */
+        plaintext_len += len;
+        // DEBUG_MSG("Decode: success\n");
+        return plaintext_len;
+    } else {
+        /* Verify failed */
+       // DEBUG_MSG("Decode: fail\n");
+        return -1;
+    }
+}
+
+/*******************END OF ENCRYPTION AUXILIARY FUNCTIONS*********************/
+
+    
 static void
 nbd_io_done(struct spdk_bdev_io *bdev_io, bool success, void *cb_arg)
 {
@@ -445,6 +531,23 @@ nbd_io_done(struct spdk_bdev_io *bdev_io, bool success, void *cb_arg)
 	struct spdk_nbd_disk *nbd = io->nbd;
 
 	if (success) {
+		if (from_be32(&io->req.type) == NBD_CMD_READ){
+			/*** TO DECRYPT THE DATA**/
+			int block_size = spdk_bdev_get_block_size(nbd->bdev);
+		        int nr_blocks = io->payload_size / block_size;
+        		uint64_t offset = from_be64(&io->req.from);
+
+        		unsigned char tweak[16] = {0};
+			
+			for (int i=0; i<nr_blocks; i++){
+                        	memcpy(tweak, (char*) &offset, 8);
+                        	memcpy(tweak + 8, (char*) &offset, 8);
+                        	offset += block_size;
+                        	
+				decrypt_xts(CLIENT_KEY, tweak, io->payload + i*block_size, io->payload + i*block_size, block_size);
+                	}
+
+		}
 		io->resp.error = 0;
 	} else {
 		to_be32(&io->resp.error, EIO);
@@ -493,6 +596,7 @@ nbd_queue_io(struct nbd_io *io)
 	}
 }
 
+
 static int
 nbd_submit_bdev_io(struct spdk_nbd_disk *nbd, struct nbd_io *io)
 {
@@ -500,14 +604,31 @@ nbd_submit_bdev_io(struct spdk_nbd_disk *nbd, struct nbd_io *io)
 	struct spdk_io_channel *ch = nbd->ch;
 	int rc = 0;
 
+	int block_size = spdk_bdev_get_block_size(nbd->bdev);
+        int nr_blocks = io->payload_size / block_size;
+        uint64_t offset = from_be64(&io->req.from);
+       
+        	
+
 	switch (from_be32(&io->req.type)) {
 	case NBD_CMD_READ:
 		rc = spdk_bdev_read(desc, ch, io->payload, from_be64(&io->req.from),
 				    io->payload_size, nbd_io_done, io);
 		break;
 	case NBD_CMD_WRITE:
+		/*** TO ENCRYPT THE DATA**/
+		for (int i=0; i<nr_blocks; i++){
+			unsigned char tweak[16] = {0};
+			memcpy(tweak, (char*) &offset, 8);
+       			memcpy(tweak + 8, (char*) &offset, 8);
+			offset += block_size;
+
+			encrypt_xts(CLIENT_KEY, tweak, io->payload + i*block_size, io->payload + i*block_size, block_size);
+		}	
+		
 		rc = spdk_bdev_write(desc, ch, io->payload, from_be64(&io->req.from),
 				     io->payload_size, nbd_io_done, io);
+		
 		break;
 #ifdef NBD_FLAG_SEND_FLUSH
 	case NBD_CMD_FLUSH:

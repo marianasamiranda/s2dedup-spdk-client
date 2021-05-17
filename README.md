@@ -2,7 +2,7 @@
 
 This repository is part of the S2Dedup project. Please refer to [S2Dedup repository](https://github.com/mmm97/S2Dedup) for further information. 
 
-S2Dedup's client is implementation is based on the Storage Performance Development Kit ([SPDK](http://www.spdk.io)), which provides a set of tools and libraries for writing high performance, scalable, user-mode storage applications. Please refer to ([SPDK-Getting_Started](https://spdk.io/doc/getting_started.html)) for installation instructions.
+S2Dedup's client implementation is based on the Storage Performance Development Kit ([SPDK](http://www.spdk.io)), which provides a set of tools and libraries for writing high performance, scalable, user-mode storage applications. Please refer to ([SPDK-Getting_Started](https://spdk.io/doc/getting_started.html)) for installation instructions.
 
 SPDK features an iSCSI client virtual block device that integrates [libiscsi](https://github.com/sahlberg/libiscsi), which allows clients to connect and transfer data to a remote storage system ([S2Dedup server](https://github.com/mmm97/s2dedup-spdk-server.git)) through the iSCSI protocol. Also, to provide a standard block-device interface for client applications (e.g., filesystem), an SPDK Linux NBD driver was stacked on top of the iSCSI client block device. 
 
